@@ -108,6 +108,20 @@ var clearDrawingButton = ui.Button({
         statusLabel.style().set('color', '#27ae60');
         enableDrawingButton.setLabel('📍 Enable Drawing');
         enableDrawingButton.style().set('color', '#000000');
+        loadRegionButton.setDisabled(true);
+    }
+});
+
+var loadRegionButton = ui.Button({
+    label: '🎯 Load Region of Interest',
+    style: styles.button,
+    disabled: true,
+    onClick: function() {
+        if (currentGeometry) {
+            map.centerObject(currentGeometry, 8);
+            statusLabel.setValue('✓ Map centered on study area');
+            statusLabel.style().set('color', '#27ae60');
+        }
     }
 });
 
@@ -428,6 +442,7 @@ mainPanel.add(ui.Panel({
     widgets: [enableDrawingButton, clearDrawingButton],
     style: {margin: '5px 0px'}
 }));
+mainPanel.add(loadRegionButton);
 mainPanel.add(regionStatusLabel);
 
 mainPanel.add(ui.Panel([ui.Label('', {height: '1px', backgroundColor: '#bdc3c7', stretch: 'horizontal'})]));
@@ -930,6 +945,8 @@ function resetUI() {
     enableDrawingButton.setLabel('📍 Enable Drawing');
     enableDrawingButton.style().set('color', '#000000');
     
+    loadRegionButton.setDisabled(true);
+    
     runButton.setDisabled(false);
     exportImageButton.setDisabled(true);
     exportCSVButton.setDisabled(true);
@@ -958,12 +975,14 @@ drawingTools.onDraw(function() {
         // Display boundary
         map.layers().reset();
         map.addLayer(currentGeometry, {color: 'ff0000', fillColor: '00000000'}, 'Study Area');
-        map.centerObject(currentGeometry, 8);
         
         regionStatusLabel.setValue('Status: Region Defined');
         regionStatusLabel.style().set('color', '#27ae60');
-        statusLabel.setValue('✓ Region defined successfully');
+        statusLabel.setValue('✓ Region defined successfully. Click "Load Region of Interest" to zoom.');
         statusLabel.style().set('color', '#27ae60');
+        
+        // Enable load region button
+        loadRegionButton.setDisabled(false);
         
         // Disable drawing after first shape
         drawingTools.setShown(false);
