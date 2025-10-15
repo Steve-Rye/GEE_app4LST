@@ -355,7 +355,7 @@ var buttonSection = ui.Panel({
 });
 
 var runButton = ui.Button({
-    label: '🚀 Run Calculation',
+    label: '🚀 Run and Export',
     style: {
         stretch: 'horizontal',
         backgroundColor: '#3498db',
@@ -399,34 +399,7 @@ var progressLabel = ui.Label({
     style: {fontSize: '11px', color: '#7f8c8d', margin: '5px 0px'}
 });
 
-// ==================== 8. Export Options ====================
-var exportSection = ui.Label('【Export Options】', styles.sectionTitle);
 
-var exportPanel = ui.Panel({
-    layout: ui.Panel.Layout.flow('horizontal'),
-    style: {margin: '5px 0px'}
-});
-
-var exportImageButton = ui.Button({
-    label: '📥 Export Image',
-    style: styles.button,
-    disabled: true,
-    onClick: function() {
-        exportResults();
-    }
-});
-
-var exportCSVButton = ui.Button({
-    label: '📊 Export Info',
-    style: styles.button,
-    disabled: true,
-    onClick: function() {
-        exportImageInfo();
-    }
-});
-
-exportPanel.add(exportImageButton);
-exportPanel.add(exportCSVButton);
 
 // ==================== Assemble Main Panel ====================
 mainPanel.add(title);
@@ -469,10 +442,6 @@ mainPanel.add(buttonSection);
 mainPanel.add(statusSection);
 mainPanel.add(statusLabel);
 mainPanel.add(progressLabel);
-
-mainPanel.add(ui.Panel([ui.Label('', {height: '1px', backgroundColor: '#bdc3c7', stretch: 'horizontal'})]));
-mainPanel.add(exportSection);
-mainPanel.add(exportPanel);
 
 // ==================== Core Functions ====================
 
@@ -731,6 +700,27 @@ function processLST(startDate, endDate, config, callback) {
             maxPixels: 1e13
         });
         
+        // Export metadata table
+        var metadataFC = LandsatColl.map(function(img) {
+            return ee.Feature(null, {
+                'IMAGE_ID': img.get('LANDSAT_PRODUCT_ID'),
+                'SATELLITE': img.get('SPACECRAFT_ID'),
+                'DATE_ACQUIRED': img.get('DATE_ACQUIRED'),
+                'SCENE_CENTER_TIME': img.get('SCENE_CENTER_TIME'),
+                'CLOUD_COVER': img.get('CLOUD_COVER'),
+                'WRS_PATH': img.get('WRS_PATH'),
+                'WRS_ROW': img.get('WRS_ROW'),
+                'SUN_AZIMUTH': img.get('SUN_AZIMUTH'),
+                'SUN_ELEVATION': img.get('SUN_ELEVATION')
+            });
+        });
+        
+        Export.table.toDrive({
+            collection: metadataFC,
+            description: filename.getInfo() + '_metadata',
+            fileFormat: 'CSV'
+        });
+        
         print('✓ ' + startDate + ' to ' + endDate + ' processing complete');
         print('Filename: ' + filename.getInfo());
         print(repeatStr('-', 50));
@@ -812,8 +802,6 @@ function runCalculation() {
     progressLabel.setValue('Total ' + timePeriods.length + ' periods to process');
     
     runButton.setDisabled(true);
-    exportImageButton.setDisabled(true);
-    exportCSVButton.setDisabled(true);
     
     // Print configuration
     print(repeatStr('=', 60));
@@ -857,8 +845,6 @@ function runCalculation() {
                 progressLabel.setValue('All periods processed, check Console for details');
                 
                 runButton.setDisabled(false);
-                exportImageButton.setDisabled(false);
-                exportCSVButton.setDisabled(false);
                 
                 print(repeatStr('=', 60));
                 print('✅ All calculations completed!');
@@ -869,31 +855,7 @@ function runCalculation() {
     });
 }
 
-// Export results
-function exportResults() {
-    if (currentResults.length === 0) {
-        statusLabel.setValue('⚠️ No results to export');
-        statusLabel.style().set('color', '#e74c3c');
-        return;
-    }
-    
-    print('📥 Export tasks created, please submit in Tasks tab');
-    statusLabel.setValue('✓ Export tasks ready');
-    statusLabel.style().set('color', '#27ae60');
-}
 
-// Export image info
-function exportImageInfo() {
-    if (currentResults.length === 0) {
-        statusLabel.setValue('⚠️ No information to export');
-        statusLabel.style().set('color', '#e74c3c');
-        return;
-    }
-    
-    print('📊 Info export tasks created, please submit in Tasks tab');
-    statusLabel.setValue('✓ Info export tasks ready');
-    statusLabel.style().set('color', '#27ae60');
-}
 
 // Reset UI
 function resetUI() {
@@ -948,8 +910,6 @@ function resetUI() {
     loadRegionButton.setDisabled(true);
     
     runButton.setDisabled(false);
-    exportImageButton.setDisabled(true);
-    exportCSVButton.setDisabled(true);
     
     print('🔄 Interface reset');
 }
