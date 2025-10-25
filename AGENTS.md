@@ -17,7 +17,7 @@
 
 ## Code Style & Conventions
 - **Language**: Google Earth Engine JavaScript (server-side)
-- **Comments**: Bilingual (Chinese/English), use Chinese for user-facing messages
+- **Comments**: Use English for user-facing messages
 - **Naming**: camelCase for variables/functions, UPPERCASE for constants
 - **Functions**: Modular helper functions (padZero, repeatStr, calcBeijingTime, etc.)
 - **Error Handling**: Check for empty collections, validate geometry, handle missing data gracefully
