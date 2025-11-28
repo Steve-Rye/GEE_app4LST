@@ -16,6 +16,15 @@ var map;
 var advancedVisible = false;
 var drawingTools;
 
+// Satellite valid date ranges
+var SATELLITE_DATE_RANGES = {
+    'L4': {startYear: 1982, endYear: 1993},
+    'L5': {startYear: 1984, endYear: 2012},
+    'L7': {startYear: 1999, endYear: 2022},
+    'L8': {startYear: 2013, endYear: null},  // null means still active
+    'L9': {startYear: 2021, endYear: null}
+};
+
 // ==================== UI Style Definitions ====================
 var styles = {
     title: {
@@ -148,24 +157,69 @@ function createTimePeriodPanel(index) {
             backgroundColor: '#ecf0f1'
         }
     });
-    
+
     var periodLabel = ui.Label({
         value: 'Period ' + (index + 1),
         style: {fontWeight: 'bold', fontSize: '12px'}
     });
-    
+
     var startDateInput = ui.Textbox({
         placeholder: 'YYYY-MM-DD',
         value: index === 0 ? '2023-01-01' : '',
         style: {stretch: 'horizontal'}
     });
-    
+
     var endDateInput = ui.Textbox({
         placeholder: 'YYYY-MM-DD',
         value: index === 0 ? '2023-12-31' : '',
         style: {stretch: 'horizontal'}
     });
-    
+
+    // Time interpolation settings
+    var enableInterpolation = ui.Checkbox({
+        label: '⏱️ Enable Time Interpolation',
+        value: false,
+        style: {fontSize: '11px', margin: '8px 0px 3px 0px'}
+    });
+
+    var interpolationPanel = ui.Panel({
+        style: {shown: false, margin: '3px 0px', padding: '5px', backgroundColor: '#f5f5f5'}
+    });
+
+    var yearRangeInput = ui.Textbox({
+        placeholder: '1-5',
+        value: '1',
+        style: {width: '50px'}
+    });
+
+    var yearRangePanel = ui.Panel({
+        layout: ui.Panel.Layout.flow('horizontal'),
+        widgets: [
+            ui.Label('Year Range:', {fontSize: '11px', width: '80px'}),
+            yearRangeInput
+        ]
+    });
+
+    var useYearBefore = ui.Checkbox({
+        label: 'Use previous years',
+        value: true,
+        style: {fontSize: '11px'}
+    });
+
+    var useYearAfter = ui.Checkbox({
+        label: 'Use following years',
+        value: true,
+        style: {fontSize: '11px'}
+    });
+
+    enableInterpolation.onChange(function(checked) {
+        interpolationPanel.style().set('shown', checked);
+    });
+
+    interpolationPanel.add(yearRangePanel);
+    interpolationPanel.add(useYearBefore);
+    interpolationPanel.add(useYearAfter);
+
     var deleteButton = ui.Button({
         label: '➖ Delete',
         style: {fontSize: '11px'},
@@ -180,20 +234,26 @@ function createTimePeriodPanel(index) {
             }
         }
     });
-    
+
     periodPanel.add(periodLabel);
     periodPanel.add(ui.Label('Start Date:', {fontSize: '11px', margin: '3px 0px'}));
     periodPanel.add(startDateInput);
     periodPanel.add(ui.Label('End Date:', {fontSize: '11px', margin: '3px 0px'}));
     periodPanel.add(endDateInput);
+    periodPanel.add(enableInterpolation);
+    periodPanel.add(interpolationPanel);
     periodPanel.add(deleteButton);
-    
+
     var periodData = {
         panel: periodPanel,
         startInput: startDateInput,
-        endInput: endDateInput
+        endInput: endDateInput,
+        enableInterpolation: enableInterpolation,
+        yearRangeInput: yearRangeInput,
+        useYearBefore: useYearBefore,
+        useYearAfter: useYearAfter
     };
-    
+
     return periodData;
 }
 
@@ -459,6 +519,27 @@ function repeatStr(str, times) {
     return result;
 }
 
+// Generate similar time period (previous or next year)
+function generateSimilarPeriod(startDate, endDate, yearOffset) {
+    var startParts = startDate.split('-');
+    var endParts = endDate.split('-');
+    var newStartYear = parseInt(startParts[0]) + yearOffset;
+    var newEndYear = parseInt(endParts[0]) + yearOffset;
+    return {
+        start: newStartYear + '-' + startParts[1] + '-' + startParts[2],
+        end: newEndYear + '-' + endParts[1] + '-' + endParts[2]
+    };
+}
+
+// Check if satellite is valid for a given year
+function isSatelliteValidForYear(satellite, year) {
+    var range = SATELLITE_DATE_RANGES[satellite];
+    if (!range) return false;
+    if (year < range.startYear) return false;
+    if (range.endYear !== null && year > range.endYear) return false;
+    return true;
+}
+
 // Calculate Beijing Time (UTC+8)
 function calcBeijingTime(centerTime) {
     var parts = centerTime.split(':');
@@ -552,7 +633,65 @@ function processLST(startDate, endDate, config, callback) {
         ));
         LandsatColl = LandsatColl.merge(satCollection);
     });
-    
+
+    // Time interpolation: add data from previous/following years
+    if (config.timeInterpolation && config.timeInterpolation.enabled) {
+        var yearRange = config.timeInterpolation.yearRange || 1;
+        var baseYear = parseInt(startDate.split('-')[0]);
+
+        print('⏱️ Time interpolation enabled, year range: ' + yearRange);
+
+        // Add previous years data
+        if (config.timeInterpolation.useYearBefore) {
+            for (var i = 1; i <= yearRange; i++) {
+                var prevPeriod = generateSimilarPeriod(startDate, endDate, -i);
+                var prevYear = baseYear - i;
+                config.satellites.forEach(function(satellite) {
+                    if (!isSatelliteValidForYear(satellite, prevYear)) {
+                        return; // Skip invalid satellite-year combination
+                    }
+                    var satCollection = LandsatLST.collection(
+                        satellite,
+                        prevPeriod.start,
+                        prevPeriod.end,
+                        currentGeometry,
+                        config.method === 'NDVI' ? 'ndvi' : true
+                    ).filter(ee.Filter.and(
+                        ee.Filter.gte('CLOUD_COVER', config.cloudMin),
+                        ee.Filter.lte('CLOUD_COVER', config.cloudMax)
+                    ));
+                    LandsatColl = LandsatColl.merge(satCollection);
+                });
+                print('  Added data from ' + i + ' year(s) before: ' + prevPeriod.start + ' ~ ' + prevPeriod.end);
+            }
+        }
+
+        // Add following years data
+        if (config.timeInterpolation.useYearAfter) {
+            for (var j = 1; j <= yearRange; j++) {
+                var nextPeriod = generateSimilarPeriod(startDate, endDate, j);
+                var nextYear = baseYear + j;
+                config.satellites.forEach(function(satellite) {
+                    if (!isSatelliteValidForYear(satellite, nextYear)) {
+                        return; // Skip invalid satellite-year combination
+                    }
+                    var satCollection = LandsatLST.collection(
+                        satellite,
+                        nextPeriod.start,
+                        nextPeriod.end,
+                        currentGeometry,
+                        config.method === 'NDVI' ? 'ndvi' : true
+                    ).filter(ee.Filter.and(
+                        ee.Filter.gte('CLOUD_COVER', config.cloudMin),
+                        ee.Filter.lte('CLOUD_COVER', config.cloudMax)
+                    ));
+                    LandsatColl = LandsatColl.merge(satCollection);
+                });
+                print('  Added data from ' + j + ' year(s) after: ' + nextPeriod.start + ' ~ ' + nextPeriod.end);
+            }
+        }
+    }
+
     var imageCount = LandsatColl.size();
     
     imageCount.evaluate(function(count) {
@@ -767,17 +906,26 @@ function runCalculation() {
     // Get time periods
     var timePeriods = [];
     var hasError = false;
-    
+
     timePeriodPanels.forEach(function(periodData) {
         var start = periodData.startInput.getValue();
         var end = periodData.endInput.getValue();
-        
+
         if (!start || !end) {
             hasError = true;
             return;
         }
-        
-        timePeriods.push({start: start, end: end});
+
+        timePeriods.push({
+            start: start,
+            end: end,
+            timeInterpolation: {
+                enabled: periodData.enableInterpolation.getValue(),
+                yearRange: parseInt(periodData.yearRangeInput.getValue()) || 1,
+                useYearBefore: periodData.useYearBefore.getValue(),
+                useYearAfter: periodData.useYearAfter.getValue()
+            }
+        });
     });
     
     if (hasError || timePeriods.length === 0) {
@@ -814,24 +962,25 @@ function runCalculation() {
     print('☁️ Cloud Cover: ' + cloudMin + '% - ' + cloudMax + '%');
     print('📅 Time Periods: ' + timePeriods.length);
     print(repeatStr('-', 60));
-    
-    // Configuration object
-    var config = {
-        method: method,
-        statType: statType,
-        cloudMin: cloudMin,
-        cloudMax: cloudMax,
-        satellites: satellites,
-        customName: customNameInput.getValue() || 'my_region'
-    };
-    
+
     // Process each time period (asynchronous)
     currentResults = [];
     var totalPeriods = timePeriods.length;
     var processedCount = 0;
     
     timePeriods.forEach(function(period, index) {
-        processLST(period.start, period.end, config, function(result) {
+        // Create config with time interpolation settings for each period
+        var periodConfig = {
+            method: method,
+            statType: statType,
+            cloudMin: cloudMin,
+            cloudMax: cloudMax,
+            satellites: satellites,
+            customName: customNameInput.getValue() || 'my_region',
+            timeInterpolation: period.timeInterpolation
+        };
+
+        processLST(period.start, period.end, periodConfig, function(result) {
             if (result) {
                 currentResults.push(result);
             }
