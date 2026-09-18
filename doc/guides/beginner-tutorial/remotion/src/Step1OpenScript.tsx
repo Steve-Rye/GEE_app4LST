@@ -86,10 +86,10 @@ export const Step1OpenScript: React.FC<Step1OpenScriptProps> = ({
               </Sequence>
             }
           >
-            <Sequence durationInFrames={84} name="拍1 · 打开脚本">
+            <Sequence durationInFrames={84} name="拍1 · 打开脚本" layout="none">
               <EmptyWorkspace />
             </Sequence>
-            <Sequence from={84} durationInFrames={96} name="拍2 · 确认登录">
+            <Sequence from={84} durationInFrames={96} name="拍2 · 确认登录" layout="none">
               <CodeEditorSketch
                 files={[
                   { name: activeFile, active: true },

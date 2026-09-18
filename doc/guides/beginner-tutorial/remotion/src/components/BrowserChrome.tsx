@@ -151,8 +151,10 @@ export const BrowserChrome: React.FC<BrowserChromeProps> = ({
 
       <div
         style={{
+          position: "relative",
           height: 672,
           backgroundColor: "#0d121a",
+          overflow: "hidden",
         }}
       >
         {children}

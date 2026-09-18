@@ -41,7 +41,7 @@ export const CodeEditorSketch: React.FC<CodeEditorSketchProps> = ({
     >
       <div
         style={{
-          width: 300,
+          width: 380,
           padding: 18,
           backgroundColor: "#101722",
           borderRight: "1px solid #2b384a",
@@ -68,8 +68,9 @@ export const CodeEditorSketch: React.FC<CodeEditorSketchProps> = ({
               backgroundColor: file.active ? "rgba(88, 166, 255, 0.16)" : "transparent",
               borderLeft: file.active ? "3px solid #58a6ff" : "3px solid transparent",
               color: file.active ? "#e6edf3" : "#8b9cb3",
-              fontSize: 20,
+              fontSize: 18,
               fontFamily: CODE_FONT_STACK,
+              whiteSpace: "nowrap",
             }}
           >
             {file.name}
