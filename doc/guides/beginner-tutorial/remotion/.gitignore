@@ -1,0 +1,11 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# 渲染缓存与临时文件；成片与关键帧见下方白名单
+out/*
+!out/step1-open-script.mp4
+!out/step1-open-script.webm
+!out/step1-beat1.png
+!out/step1-beat2.png

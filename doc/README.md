@@ -18,6 +18,7 @@ Welcome to the documentation for the Google Earth Engine Landsat Land Surface Te
 - [**Getting Started**](guides/getting-started.md) - Quick start and deployment
 - [**Common Modifications**](guides/common-modifications.md) - How to customize the application
 - [**Visualization**](guides/visualization.md) - Map layers and histogram configuration
+- [**中文小白跟做教程（步骤 1 动效）**](guides/beginner-tutorial/README.md) - Remotion 示意短片：打开脚本并确认登录
 
 ### Reference
 - [**Module Functions**](reference/module-functions.md) - Core functions and helper utilities
